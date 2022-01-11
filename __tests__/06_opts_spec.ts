@@ -33,6 +33,23 @@ describe('bindProxyAndYMap options', () => {
     await Promise.resolve();
     expect(fn).toBeCalledWith(transactionOrigin);
   });
+
+  it('bundles map updates into a single transaction', async () => {
+    const doc = new Y.Doc();
+    const p = proxy({ a: 0, b: 0, c: 0 });
+    const m = doc.getMap('map');
+    bindProxyAndYMap(p, m, { transactionOrigin: () => 'vy' });
+
+    const onUpdate = jest.fn();
+    doc.on('updateV2', onUpdate);
+
+    p.a = 1;
+    p.b = 2;
+    p.c = 3;
+
+    await Promise.resolve();
+    expect(onUpdate).toBeCalledTimes(1);
+  });
 });
 
 describe('bindProxyAndYArray', () => {

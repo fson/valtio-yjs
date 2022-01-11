@@ -35,30 +35,24 @@ export const bindProxyAndYMap = <T>(
   const pv2yvCache = new WeakMap<object, unknown>();
 
   const setPValueToY = (pv: T, k: string) => {
-    transact(y.doc, opts, () => {
-      if (
-        isObject(pv) &&
-        pv2yvCache.has(pv) &&
-        pv2yvCache.get(pv) === y.get(k)
-      ) {
-        return;
-      }
-      if (Array.isArray(pv)) {
-        const yv = new Y.Array();
-        pv2yvCache.set(pv, yv);
-        bindProxyAndYArray(pv, yv, opts);
-        y.set(k, yv as unknown as T);
-      } else if (isObject(pv)) {
-        const yv = new Y.Map();
-        pv2yvCache.set(pv, yv);
-        bindProxyAndYMap(pv, yv, opts);
-        y.set(k, yv as unknown as T);
-      } else if (isPrimitiveMapValue(pv)) {
-        y.set(k, pv);
-      } else {
-        throw new Error('unsupported p type');
-      }
-    });
+    if (isObject(pv) && pv2yvCache.has(pv) && pv2yvCache.get(pv) === y.get(k)) {
+      return;
+    }
+    if (Array.isArray(pv)) {
+      const yv = new Y.Array();
+      pv2yvCache.set(pv, yv);
+      bindProxyAndYArray(pv, yv, opts);
+      y.set(k, yv as unknown as T);
+    } else if (isObject(pv)) {
+      const yv = new Y.Map();
+      pv2yvCache.set(pv, yv);
+      bindProxyAndYMap(pv, yv, opts);
+      y.set(k, yv as unknown as T);
+    } else if (isPrimitiveMapValue(pv)) {
+      y.set(k, pv);
+    } else {
+      throw new Error('unsupported p type');
+    }
   };
 
   const setYValueToP = (yv: T, k: string) => {
@@ -131,21 +125,23 @@ export const bindProxyAndYMap = <T>(
 
   // subscribe p
   subscribe(p, (ops) => {
-    ops.forEach((op) => {
-      const path = op[1];
-      if (path.length !== 1) {
-        return;
-      }
-      const k = path[0] as string;
-      if (op[0] === 'delete') {
-        y.delete(k);
-      } else if (op[0] === 'set') {
-        const pv = p[k];
-        const yv = y.get(k);
-        if (!deepEqual(yv instanceof Y.AbstractType ? yv.toJSON() : yv, pv)) {
-          setPValueToY(pv, k);
+    transact(y.doc, opts, () => {
+      ops.forEach((op) => {
+        const path = op[1];
+        if (path.length !== 1) {
+          return;
         }
-      }
+        const k = path[0] as string;
+        if (op[0] === 'delete') {
+          y.delete(k);
+        } else if (op[0] === 'set') {
+          const pv = p[k];
+          const yv = y.get(k);
+          if (!deepEqual(yv instanceof Y.AbstractType ? yv.toJSON() : yv, pv)) {
+            setPValueToY(pv, k);
+          }
+        }
+      });
     });
   });
 
